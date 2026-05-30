@@ -9,7 +9,6 @@ import seaborn as sns
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from models import StepModel, RampModel
 
-10
 
 # Fixed Parameters for both models
 Ntrials = 5000

@@ -36,15 +36,12 @@ def dlse(a, out):
 
 
 @numba.jit(nopython=True, cache=True)
-def forward_pass(pi0,
-                 Ps,
-                 log_likes,
-                 alphas):
+def forward_pass(pi0, Ps, log_likes, alphas):
 
     T = log_likes.shape[0]  # number of time steps
     K = log_likes.shape[1]  # number of discrete states
 
-    assert Ps.shape[0] == T-1 or Ps.shape[0] == 1
+    assert Ps.shape[0] == T - 1 or Ps.shape[0] == 1
     assert Ps.shape[1] == K
     assert Ps.shape[2] == K
     assert alphas.shape[0] == T
@@ -52,23 +49,23 @@ def forward_pass(pi0,
 
     # Check if we have heterogeneous transition matrices.
     # If not, save memory by passing in log_Ps of shape (1, K, K)
-    hetero = (Ps.shape[0] == T-1)
+    hetero = Ps.shape[0] == T - 1
     alphas[0] = np.log(pi0) + log_likes[0]
-    for t in range(T-1):
+    for t in range(T - 1):
         m = np.max(alphas[t])
-        alphas[t+1] = np.log(np.dot(np.exp(alphas[t] - m), Ps[t * hetero])) + m + log_likes[t+1]
-    return logsumexp(alphas[T-1])
+        alphas[t + 1] = (
+            np.log(np.dot(np.exp(alphas[t] - m), Ps[t * hetero])) + m + log_likes[t + 1]
+        )
+    return logsumexp(alphas[T - 1])
 
 
 @numba.jit(nopython=True, cache=True)
-def backward_pass(Ps,
-                  log_likes,
-                  betas):
+def backward_pass(Ps, log_likes, betas):
 
     T = log_likes.shape[0]  # number of time steps
     K = log_likes.shape[1]  # number of discrete states
 
-    assert Ps.shape[0] == T-1 or Ps.shape[0] == 1
+    assert Ps.shape[0] == T - 1 or Ps.shape[0] == 1
     assert Ps.shape[1] == K
     assert Ps.shape[2] == K
     assert betas.shape[0] == T
@@ -76,13 +73,13 @@ def backward_pass(Ps,
 
     # Check if we have heterogeneous transition matrices.
     # If not, save memory by passing in log_Ps of shape (1, K, K)
-    hetero = (Ps.shape[0] == T-1)
+    hetero = Ps.shape[0] == T - 1
     tmp = np.zeros(K)
 
     # Initialize the last output
-    betas[T-1] = 0
-    for t in range(T-2,-1,-1):
-        tmp = log_likes[t+1] + betas[t+1]
+    betas[T - 1] = 0
+    for t in range(T - 2, -1, -1):
+        tmp = log_likes[t + 1] + betas[t + 1]
         m = np.max(tmp)
         betas[t] = np.log(np.dot(Ps[t * hetero], np.exp(tmp - m))) + m
 
@@ -95,10 +92,10 @@ def hmm_normalizer(pi0, Ps, ll):
         Ps = Ps[None, :, :]
     assert Ps.ndim == 3
 
-#     # Make sure everything is C contiguous
-#     pi0 = to_c(pi0)
-#     Ps = to_c(Ps)
-#     ll = to_c(ll)
+    #     # Make sure everything is C contiguous
+    #     pi0 = to_c(pi0)
+    #     Ps = to_c(Ps)
+    #     ll = to_c(ll)
 
     forward_pass(pi0, Ps, ll, alphas)
     return logsumexp(alphas[-1])
@@ -153,7 +150,7 @@ def hmm_expected_states(pi0, Ps, ll, filter=False):
 def backward_sample(Ps, log_likes, alphas, us, zs):
     T = log_likes.shape[0]
     K = log_likes.shape[1]
-    assert Ps.shape[0] == T-1 or Ps.shape[0] == 1
+    assert Ps.shape[0] == T - 1 or Ps.shape[0] == 1
     assert Ps.shape[1] == K
     assert Ps.shape[2] == K
     assert alphas.shape[0] == T
@@ -165,16 +162,16 @@ def backward_sample(Ps, log_likes, alphas, us, zs):
     lpz = np.zeros(K)
 
     # Trick for handling time-varying transition matrices
-    hetero = (Ps.shape[0] == T-1)
+    hetero = Ps.shape[0] == T - 1
 
-    for t in range(T-1,-1,-1):
+    for t in range(T - 1, -1, -1):
         # compute normalized log p(z[t] = k | z[t+1])
         lpz = lpzp1 + alphas[t]
         Z = logsumexp(lpz)
 
         # sample
         acc = 0
-        zs[t] = K-1
+        zs[t] = K - 1
         for k in range(K):
             acc += np.exp(lpz[k] - Z)
             if us[t] < acc:
@@ -183,7 +180,7 @@ def backward_sample(Ps, log_likes, alphas, us, zs):
 
         # set the transition potential
         if t > 0:
-            lpzp1 = np.log(Ps[(t-1) * hetero, :, int(zs[t])] + LOG_EPS)
+            lpzp1 = np.log(Ps[(t - 1) * hetero, :, int(zs[t])] + LOG_EPS)
 
 
 @numba.jit(nopython=True, cache=True)
@@ -216,24 +213,24 @@ def _viterbi(pi0, Ps, ll):
 
     # Check if the transition matrices are stationary or
     # time-varying (hetero)
-    hetero = (Ps.shape[0] == T-1)
+    hetero = Ps.shape[0] == T - 1
     if not hetero:
         assert Ps.shape[0] == 1
 
     # Pass max-sum messages backward
     scores = np.zeros((T, K))
     args = np.zeros((T, K))
-    for t in range(T-2,-1,-1):
-        vals = np.log(Ps[t * hetero] + LOG_EPS) + scores[t+1] + ll[t+1]
+    for t in range(T - 2, -1, -1):
+        vals = np.log(Ps[t * hetero] + LOG_EPS) + scores[t + 1] + ll[t + 1]
         for k in range(K):
-            args[t+1, k] = np.argmax(vals[k])
+            args[t + 1, k] = np.argmax(vals[k])
             scores[t, k] = np.max(vals[k])
 
     # Now maximize forwards
     z = np.zeros(T)
     z[0] = (scores[0] + np.log(pi0 + LOG_EPS) + ll[0]).argmax()
     for t in range(1, T):
-        z[t] = args[t, int(z[t-1])]
+        z[t] = args[t, int(z[t - 1])]
 
     return z
 
@@ -267,7 +264,7 @@ def poisson_logpdf(counts, lambdas, mask=None):
     if counts.ndim == 1:
         counts = counts[:, None]
     elif counts.ndim == 2:
-        counts = counts[:,:,None]
+        counts = counts[:, :, None]
 
     # Compute log pdf
     lambdas[lambdas == 0] = 1e-8
