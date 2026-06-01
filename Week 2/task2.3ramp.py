@@ -593,7 +593,7 @@ beta_values = [0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 2.0]
 sigma_values = [0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0]
 K_values = [10, 20, 30, 50, 75, 100, 120, 150]
 x0_values = [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-Rh_values = [1, 5, 10, 20, 50, 75, 100, 250, 500, 1000]
+Rh_values = [1, 5, 10, 50, 100, 1000, 10000, 50000, 100000]
 
 
 # Find errors
@@ -808,7 +808,7 @@ sns.heatmap(
     xticklabels=[f"{Rh:.2f}" for Rh in Rh_values],
     yticklabels=[f"{K:.2f}" for K in K_values],
 )
-plt.xlabel("x0")
+plt.xlabel("Rh")
 plt.ylabel("K")
 plt.title("Error Filter: K vs Rh")
 plt.show()
@@ -838,7 +838,7 @@ sns.heatmap(
     xticklabels=[f"{Rh:.2f}" for Rh in Rh_values],
     yticklabels=[f"{sigma:.2f}" for sigma in sigma_values],
 )
-plt.xlabel("x0")
+plt.xlabel("Rh")
 plt.ylabel("sigma")
 plt.title("Error Filter: sigma vs Rh")
 plt.show()
@@ -868,7 +868,7 @@ sns.heatmap(
     xticklabels=[f"{Rh:.2f}" for Rh in Rh_values],
     yticklabels=[f"{beta:.2f}" for beta in beta_values],
 )
-plt.xlabel("x0")
+plt.xlabel("Rh")
 plt.ylabel("beta")
 plt.title("Error Filter: beta vs Rh")
 plt.show()
@@ -898,7 +898,7 @@ sns.heatmap(
     xticklabels=[f"{Rh:.2f}" for Rh in Rh_values],
     yticklabels=[f"{x0:.2f}" for x0 in x0_values],
 )
-plt.xlabel("x0")
+plt.xlabel("Rh")
 plt.ylabel("x0")
 plt.title("Error Filter: x0 vs Rh")
 plt.show()
