@@ -1,8 +1,24 @@
+import os
+
+os.environ["OMP_NUM_THREADS"] = str(os.cpu_count())
+
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from pathlib import Path
 from scipy.special import binom
+import matplotlib.pyplot as plt
+
+# Labels
+plt.rcParams.update(
+    {
+        "axes.labelsize": 20,  # x and y labels
+        "axes.titlesize": 20,  # title size
+        "xtick.labelsize": 14,  # x tick labels
+        "ytick.labelsize": 14,  # y tick labels
+        "legend.fontsize": 14,  # legend text
+    }
+)
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from models import StepModel
@@ -92,7 +108,7 @@ for r_loop in r_values:
 
 # Part b) 2 States Homogenous MC
 # Initial Distribution
-pi_2h = np.array([1, 0])
+pi_2h = np.array([1 - 1 / m, 1 / m])
 # Transition Matrix
 T_matrix_2h = np.array([[1 - 1 / m, 1 / m], [0, 1]])
 
@@ -150,7 +166,7 @@ for m_loop in m_values:
     color_idx_2h = 0
     plt.figure(figsize=(10, 5))
     for r_loop in r_values:
-        pi_2h_loop = np.array([1, 0])
+        pi_2h_loop = np.array([1 - 1 / m_loop, 1 / m_loop])
         T_matrix_2h_loop = np.array([[1 - 1 / m_loop, 1 / m_loop], [0, 1]])
         x_0_samples_2h_loop = np.random.choice(2, size=Ntrials, p=pi_2h_loop)
         s_t_2h_loop = get_s_t_2h(T_matrix_2h_loop, x_0_samples_2h_loop)
@@ -173,7 +189,7 @@ for r_loop in r_values:
     color_idx_2h = 0
     plt.figure(figsize=(10, 5))
     for m_loop in m_values:
-        pi_2h_loop = np.array([1, 0])
+        pi_2h_loop = np.array([1 - 1 / m_loop, 1 / m_loop])
         T_matrix_2h_loop = np.array([[1 - 1 / m_loop, 1 / m_loop], [0, 1]])
         x_0_samples_2h_loop = np.random.choice(2, size=Ntrials, p=pi_2h_loop)
         s_t_2h_loop = get_s_t_2h(T_matrix_2h_loop, x_0_samples_2h_loop)
@@ -195,21 +211,6 @@ for r_loop in r_values:
 # Part c) (r+1) States Homogenous MC
 
 
-# Initial Distribution
-def get_pi_rh(r):
-    pi_rh = []
-    for i in range(r + 1):
-        if i == 0:
-            pi_rh.append(1)
-        else:
-            pi_rh.append(0)
-    pi_rh = np.array(pi_rh)
-    return pi_rh
-
-
-pi_rh = get_pi_rh(r)
-
-
 # Transition Matrix
 def get_T_matrix_rh(m, r):
     p = r / (m + r)
@@ -223,6 +224,22 @@ def get_T_matrix_rh(m, r):
     return T_matrix_rh
 
 
+# Initial Distribution
+def get_pi_rh(m, r):
+    T_matrix_rh = get_T_matrix_rh(m, r)
+    pi_rh0 = []
+    for i in range(r + 1):
+        if i == 0:
+            pi_rh0.append(1)
+        else:
+            pi_rh0.append(0)
+    pi_rh0 = np.array(pi_rh0)
+    for i in range(r):
+        pi_rh0 = np.dot(pi_rh0, T_matrix_rh)
+    return pi_rh0
+
+
+pi_rh = get_pi_rh(m, r)
 T_matrix_rh = get_T_matrix_rh(m, r)
 
 
@@ -249,9 +266,7 @@ def get_jump_times_rh(s_t_rh, r):
     for i in range(Ntrials):
         jump_indices = np.where(s_t_rh[i] == r)[0]
         if len(jump_indices) > 0:
-            jump_times_rh[i] = max(
-                0, jump_indices[0] - r
-            )  # shift by r to align with StepModel jump times
+            jump_times_rh[i] = jump_indices[0]
     return jump_times_rh
 
 
@@ -283,7 +298,7 @@ for m_loop in m_values:
     color_idx_rh = 0
     plt.figure(figsize=(10, 5))
     for r_loop in r_values:
-        pi_rh_loop = get_pi_rh(r_loop)
+        pi_rh_loop = get_pi_rh(m_loop, r_loop)
         T_matrix_rh_loop = get_T_matrix_rh(m_loop, r_loop)
         s_0_samples_rh_loop = np.random.choice(r_loop + 1, size=Ntrials, p=pi_rh_loop)
         s_t_rh_loop = get_s_t_rh(s_0_samples_rh_loop, T_matrix_rh_loop, r_loop)
@@ -306,7 +321,7 @@ for r_loop in r_values:
     color_idx_rh = 0
     plt.figure(figsize=(10, 5))
     for m_loop in m_values:
-        pi_rh_loop = get_pi_rh(r_loop)
+        pi_rh_loop = get_pi_rh(m_loop, r_loop)
         T_matrix_rh_loop = get_T_matrix_rh(m_loop, r_loop)
         s_0_samples_rh_loop = np.random.choice(r_loop + 1, size=Ntrials, p=pi_rh_loop)
         s_t_rh_loop = get_s_t_rh(s_0_samples_rh_loop, T_matrix_rh_loop, r_loop)
@@ -327,8 +342,16 @@ for r_loop in r_values:
 
 # Part d) 2 States Inhomogenous MC
 
+
 # Initial Distribution
-pi_2ih = np.array([1, 0])
+def get_initial_distribution_2ih(m, r):
+    p = r / (m + r)
+    P = p**r
+    pi_2ih = np.array([1 - P, P])
+    return pi_2ih
+
+
+pi_2ih = get_initial_distribution_2ih(m, r)
 
 # Sample s_0 from initial distribution
 s_0_samples_2ih = np.random.choice(2, size=Ntrials, p=pi_2ih)
@@ -344,7 +367,11 @@ def get_s_t_2ih(m, r, s_0_samples_2ih):
         prob_sum = 0
         for s in range(t):
             prob_sum += binom(s + r - 1, s) * (p**r) * ((1 - p) ** (s))
-        Pt = binom(t + r - 1, t) * (p**r) * ((1 - p) ** t) / (1 - prob_sum + 1e-10)
+        if prob_sum >= 1:
+            Pt = 0.0
+        else:
+            Pt = binom(t + r - 1, t) * (p**r) * ((1 - p) ** t) / (1 - prob_sum)
+            Pt = min(Pt, 1.0)  # safety clip
         T_matrix_2ih_t = np.array([[1 - Pt, Pt], [0, 1]])
         T_matrix_2ih[t - 1] = T_matrix_2ih_t
         for i in range(Ntrials):
@@ -395,7 +422,7 @@ for m_loop in m_values:
     plt.figure(figsize=(10, 5))
     for r_loop in r_values:
         p_loop = r_loop / (m_loop + r_loop)
-        pi_2ih_loop = np.array([1, 0])
+        pi_2ih_loop = get_initial_distribution_2ih(m_loop, r_loop)
         s_0_samples_2ih_loop = np.random.choice(2, size=Ntrials, p=pi_2ih_loop)
         T_matrix_2ih_loop, s_t_2ih_loop = get_s_t_2ih(
             m_loop, r_loop, s_0_samples_2ih_loop
@@ -420,7 +447,7 @@ for r_loop in r_values:
     plt.figure(figsize=(10, 5))
     for m_loop in m_values:
         p_loop = r_loop / (m_loop + r_loop)
-        pi_2ih_loop = np.array([1, 0])
+        pi_2ih_loop = get_initial_distribution_2ih(m_loop, r_loop)
         s_0_samples_2ih_loop = np.random.choice(2, size=Ntrials, p=pi_2ih_loop)
         T_matrix_2ih_loop, s_t_2ih_loop = get_s_t_2ih(
             m_loop, r_loop, s_0_samples_2ih_loop
@@ -446,7 +473,11 @@ for t in range(1, T):
     prob_sum = 0
     for s in range(t):
         prob_sum += binom(s + r - 1, s) * (p**r) * ((1 - p) ** (s))
-    Pt_value = binom(t + r - 1, t) * (p**r) * ((1 - p) ** t) / (1 - prob_sum + 1e-10)
+    if prob_sum >= 1:
+        Pt_value = 0.0
+    else:
+        Pt_value = binom(t + r - 1, t) * (p**r) * ((1 - p) ** t) / (1 - prob_sum)
+        Pt_value = min(Pt_value, 1.0)  # safety clip
     Pt.append(Pt_value)
 Pt = np.array(Pt)
 
@@ -476,21 +507,21 @@ def compare_models(m, r):
     )
 
     # 2-State Homogenous
-    pi_2h = np.array([1, 0])
+    pi_2h = np.array([1 - 1 / m, 1 / m])
     T_matrix_2h = np.array([[1 - 1 / m, 1 / m], [0, 1]])
     x_0_samples_2h = np.random.choice(2, size=Ntrials, p=pi_2h)
     s_t_2h = get_s_t_2h(T_matrix_2h, x_0_samples_2h)
     jump_times_2h = get_jump_times_2h(s_t_2h)
 
     # (r+1)-State Homogenous
-    pi_rh = get_pi_rh(r)
+    pi_rh = get_pi_rh(m, r)
     T_matrix_rh = get_T_matrix_rh(m, r)
     s_0_samples_rh = np.random.choice(r + 1, size=Ntrials, p=pi_rh)
     s_t_rh = get_s_t_rh(s_0_samples_rh, T_matrix_rh, r)
     jump_times_rh = get_jump_times_rh(s_t_rh, r)
 
     # 2-State Inhomogenous
-    pi_2ih = np.array([1, 0])
+    pi_2ih = get_initial_distribution_2ih(m, r)
     s_0_samples_2ih = np.random.choice(2, size=Ntrials, p=pi_2ih)
     T_matrix_2ih, s_t_2ih = get_s_t_2ih(m, r, s_0_samples_2ih)
     jump_times_2ih = get_jump_times_2ih(s_t_2ih)

@@ -1,9 +1,26 @@
+import os
+
+os.environ["OMP_NUM_THREADS"] = str(os.cpu_count())
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import sys
 from pathlib import Path
 import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Labels
+plt.rcParams.update(
+    {
+        "axes.labelsize": 20,  # x and y labels
+        "axes.titlesize": 20,  # title size
+        "xtick.labelsize": 14,  # x tick labels
+        "ytick.labelsize": 14,  # y tick labels
+        "legend.fontsize": 14,  # legend text
+    }
+)
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from inference import hmm_expected_states, poisson_logpdf
@@ -621,7 +638,6 @@ sns.heatmap(
 )
 plt.xlabel("sigma")
 plt.ylabel("beta")
-plt.title("Error Smoother: beta vs sigma")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -635,7 +651,6 @@ sns.heatmap(
 )
 plt.xlabel("sigma")
 plt.ylabel("beta")
-plt.title("Error Filter: beta vs sigma")
 plt.show()
 
 # Plot Heatmaps for beta vs K
@@ -650,7 +665,6 @@ sns.heatmap(
 )
 plt.xlabel("K")
 plt.ylabel("beta")
-plt.title("Error Smoother: beta vs K")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -664,7 +678,6 @@ sns.heatmap(
 )
 plt.xlabel("K")
 plt.ylabel("beta")
-plt.title("Error Filter: beta vs K")
 plt.show()
 
 # Plot Heatmaps for beta vs x0
@@ -679,7 +692,6 @@ sns.heatmap(
 )
 plt.xlabel("x0")
 plt.ylabel("beta")
-plt.title("Error Smoother: beta vs x0")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -693,7 +705,6 @@ sns.heatmap(
 )
 plt.xlabel("x0")
 plt.ylabel("beta")
-plt.title("Error Filter: beta vs x0")
 plt.show()
 
 # Plot Heatmaps for K vs sigma
@@ -708,7 +719,6 @@ sns.heatmap(
 )
 plt.xlabel("sigma")
 plt.ylabel("K")
-plt.title("Error Smoother: K vs sigma")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -722,7 +732,6 @@ sns.heatmap(
 )
 plt.xlabel("sigma")
 plt.ylabel("K")
-plt.title("Error Filter: K vs sigma")
 plt.show()
 
 # Plot Heatmaps for x0 vs sigma
@@ -737,7 +746,6 @@ sns.heatmap(
 )
 plt.xlabel("sigma")
 plt.ylabel("x0")
-plt.title("Error Smoother: x0 vs sigma")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -751,7 +759,6 @@ sns.heatmap(
 )
 plt.xlabel("sigma")
 plt.ylabel("x0")
-plt.title("Error Filter: x0 vs sigma")
 plt.show()
 
 # Plot Heatmaps for K vs x0
@@ -766,7 +773,6 @@ sns.heatmap(
 )
 plt.xlabel("x0")
 plt.ylabel("K")
-plt.title("Error Smoother: K vs x0")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -780,7 +786,6 @@ sns.heatmap(
 )
 plt.xlabel("x0")
 plt.ylabel("K")
-plt.title("Error Filter: K vs x0")
 plt.show()
 
 
@@ -796,7 +801,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("K")
-plt.title("Error Smoother: K vs Rh")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -810,7 +814,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("K")
-plt.title("Error Filter: K vs Rh")
 plt.show()
 
 
@@ -826,7 +829,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("sigma")
-plt.title("Error Smoother: sigma vs Rh")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -840,7 +842,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("sigma")
-plt.title("Error Filter: sigma vs Rh")
 plt.show()
 
 
@@ -856,7 +857,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("beta")
-plt.title("Error Smoother: beta vs Rh")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -870,7 +870,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("beta")
-plt.title("Error Filter: beta vs Rh")
 plt.show()
 
 
@@ -886,7 +885,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("x0")
-plt.title("Error Smoother: x0 vs Rh")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -900,5 +898,4 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("x0")
-plt.title("Error Filter: x0 vs Rh")
 plt.show()

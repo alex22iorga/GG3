@@ -1,8 +1,24 @@
+import os
+
+os.environ["OMP_NUM_THREADS"] = str(os.cpu_count())
+
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Labels
+plt.rcParams.update(
+    {
+        "axes.labelsize": 20,  # x and y labels
+        "axes.titlesize": 20,  # title size
+        "xtick.labelsize": 14,  # x tick labels
+        "ytick.labelsize": 14,  # y tick labels
+        "legend.fontsize": 14,  # legend text
+    }
+)
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from inference import hmm_expected_states, poisson_logpdf
@@ -23,21 +39,6 @@ p = r / (m + r)
 # Version 1: (r+1) States Homogenous MC
 
 
-# Initial Distribution
-def get_pi_rh(r):
-    pi_rh = []
-    for i in range(r + 1):
-        if i == 0:
-            pi_rh.append(1)
-        else:
-            pi_rh.append(0)
-    pi_rh = np.array(pi_rh)
-    return pi_rh
-
-
-pi_rh = get_pi_rh(r)
-
-
 # Transition Matrix
 def get_T_matrix_rh(m, r):
     p = r / (m + r)
@@ -51,6 +52,22 @@ def get_T_matrix_rh(m, r):
     return T_matrix_rh
 
 
+# Initial Distribution
+def get_pi_rh(m, r):
+    T_matrix_rh = get_T_matrix_rh(m, r)
+    pi_rh0 = []
+    for i in range(r + 1):
+        if i == 0:
+            pi_rh0.append(1)
+        else:
+            pi_rh0.append(0)
+    pi_rh0 = np.array(pi_rh0)
+    for i in range(r):
+        pi_rh0 = np.dot(pi_rh0, T_matrix_rh)
+    return pi_rh0
+
+
+pi_rh = get_pi_rh(m, r)
 T_matrix_rh = get_T_matrix_rh(m, r)
 
 
@@ -77,9 +94,7 @@ def get_jump_times_rh(s_t_rh, r):
     for i in range(Ntrials):
         jump_indices = np.where(s_t_rh[i] == r)[0]
         if len(jump_indices) > 0:
-            jump_times_rh[i] = max(
-                0, jump_indices[0] - r
-            )  # shift by r to align with StepModel jump times
+            jump_times_rh[i] = jump_indices[0]
     return jump_times_rh
 
 
@@ -198,7 +213,7 @@ def heat_map_m_r(m_values, r_values):
     for i in range(len(m_values)):
         for j in range(len(r_values)):
             # Sample s_0 from initial distribution
-            pi_rh = get_pi_rh(r_values[j])
+            pi_rh = get_pi_rh(m_values[i], r_values[j])
             T_matrix_rh = get_T_matrix_rh(m_values[i], r_values[j])
             s_0_samples_rh = np.random.choice(r_values[j] + 1, size=Ntrials, p=pi_rh)
             s_t_rh = get_s_t_rh(s_0_samples_rh, T_matrix_rh, r_values[j])
@@ -250,7 +265,7 @@ def heat_map_m_x0(m_values, x0_values):
     for i in range(len(m_values)):
         for j in range(len(x0_values)):
             # Sample s_0 from initial distribution
-            pi_rh = get_pi_rh(r)
+            pi_rh = get_pi_rh(m_values[i], r)
             T_matrix_rh = get_T_matrix_rh(m_values[i], r)
             s_0_samples_rh = np.random.choice(r + 1, size=Ntrials, p=pi_rh)
             s_t_rh = get_s_t_rh(s_0_samples_rh, T_matrix_rh, r)
@@ -302,7 +317,7 @@ def heat_map_x0_r(x0_values, r_values):
     for i in range(len(x0_values)):
         for j in range(len(r_values)):
             # Sample s_0 from initial distribution
-            pi_rh = get_pi_rh(r_values[j])
+            pi_rh = get_pi_rh(m, r_values[j])
             T_matrix_rh = get_T_matrix_rh(m, r_values[j])
             s_0_samples_rh = np.random.choice(r_values[j] + 1, size=Ntrials, p=pi_rh)
             s_t_rh = get_s_t_rh(s_0_samples_rh, T_matrix_rh, r_values[j])
@@ -354,7 +369,7 @@ def heat_map_x0_Rh(x0_values, Rh_values):
     for i in range(len(x0_values)):
         for j in range(len(Rh_values)):
             # Sample s_0 from initial distribution
-            pi_rh = get_pi_rh(r)
+            pi_rh = get_pi_rh(m, r)
             T_matrix_rh = get_T_matrix_rh(m, r)
             s_0_samples_rh = np.random.choice(r + 1, size=Ntrials, p=pi_rh)
             s_t_rh = get_s_t_rh(s_0_samples_rh, T_matrix_rh, r)
@@ -406,7 +421,7 @@ def heat_map_m_Rh(m_values, Rh_values):
     for i in range(len(m_values)):
         for j in range(len(Rh_values)):
             # Sample s_0 from initial distribution
-            pi_rh = get_pi_rh(r)
+            pi_rh = get_pi_rh(m_values[i], r)
             T_matrix_rh = get_T_matrix_rh(m_values[i], r)
             s_0_samples_rh = np.random.choice(r + 1, size=Ntrials, p=pi_rh)
             s_t_rh = get_s_t_rh(s_0_samples_rh, T_matrix_rh, r)
@@ -458,7 +473,7 @@ def heat_map_r_Rh(r_values, Rh_values):
     for i in range(len(r_values)):
         for j in range(len(Rh_values)):
             # Sample s_0 from initial distribution
-            pi_rh = get_pi_rh(r_values[i])
+            pi_rh = get_pi_rh(m, r_values[i])
             T_matrix_rh = get_T_matrix_rh(m, r_values[i])
             s_0_samples_rh = np.random.choice(r_values[i] + 1, size=Ntrials, p=pi_rh)
             s_t_rh = get_s_t_rh(s_0_samples_rh, T_matrix_rh, r_values[i])
@@ -531,7 +546,6 @@ sns.heatmap(
 )
 plt.xlabel("r")
 plt.ylabel("m")
-plt.title("Error Smoother: m vs r")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -545,7 +559,6 @@ sns.heatmap(
 )
 plt.xlabel("r")
 plt.ylabel("m")
-plt.title("Error Filter: m vs r")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -559,7 +572,6 @@ sns.heatmap(
 )
 plt.xlabel("x0")
 plt.ylabel("m")
-plt.title("Error Smoother: m vs x0")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -573,7 +585,6 @@ sns.heatmap(
 )
 plt.xlabel("x0")
 plt.ylabel("m")
-plt.title("Error Filter: m vs x0")
 plt.show()
 
 
@@ -588,7 +599,6 @@ sns.heatmap(
 )
 plt.xlabel("r")
 plt.ylabel("x0")
-plt.title("Error Smoother: x0 vs r")
 plt.show()
 
 plt.figure(figsize=(10, 5))
@@ -602,7 +612,6 @@ sns.heatmap(
 )
 plt.xlabel("r")
 plt.ylabel("x0")
-plt.title("Error Filter: x0 vs r")
 plt.show()
 
 
@@ -617,7 +626,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("x0")
-plt.title("Error Smoother: x0 vs Rh")
 plt.show()
 
 
@@ -632,7 +640,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("x0")
-plt.title("Error Filter: x0 vs Rh")
 plt.show()
 
 
@@ -647,7 +654,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("m")
-plt.title("Error Smoother: m vs Rh")
 plt.show()
 
 
@@ -662,7 +668,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("m")
-plt.title("Error Filter: m vs Rh")
 plt.show()
 
 
@@ -677,7 +682,6 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("r")
-plt.title("Error Smoother: r vs Rh")
 plt.show()
 
 
@@ -692,5 +696,4 @@ sns.heatmap(
 )
 plt.xlabel("Rh")
 plt.ylabel("r")
-plt.title("Error Filter: r vs Rh")
 plt.show()

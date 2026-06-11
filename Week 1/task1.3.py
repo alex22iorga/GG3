@@ -1,3 +1,7 @@
+import os
+
+os.environ["OMP_NUM_THREADS"] = str(os.cpu_count())
+
 import numpy as np
 import numpy.random as npr
 import sys
@@ -5,81 +9,112 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from scipy import signal
 import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Labels
+plt.rcParams.update(
+    {
+        "axes.labelsize": 20,  # x and y labels
+        "axes.titlesize": 20,  # title size
+        "xtick.labelsize": 14,  # x tick labels
+        "ytick.labelsize": 14,  # y tick labels
+        "legend.fontsize": 14,  # legend text
+    }
+)
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from models import StepModel, RampModel
-
 
 # Fixed Parameters for both models
 Ntrials = 5000
 T = 100
 x0 = 0.2
 Rh = 50
-dt = 1 / T  # 10 ms bins for T=100
-
-# Fixed parameters for StepModel
+dt = 1 / T
 m = 50
 r = 10
-
-# Fixed parameters for RampModel
 beta = 0.5
-sigma = 100
+sigma = 0.2
+
+
+# Time axis: bin centres in ms
+time_ms = (np.arange(T) + 0.5) * dt * 1000  # e.g. 5, 15, ..., 995 ms
+
+# Definition of Larger Bins
+ratio = 10
+T_new = T // ratio
+dt_new = dt * ratio  # 100 ms bins for T_new=10
+time_ms_new = (np.arange(T_new) + 0.5) * dt_new * 1000  # e.g. 50, 150, ..., 950 ms
+
+
+# Bin down to 100ms bins
+def bin_spikes(spikes, bin_size):
+    Ntrials, T = spikes.shape
+    n_bins = T // bin_size
+    return spikes[:, : n_bins * bin_size].reshape(Ntrials, n_bins, bin_size).sum(axis=2)
 
 
 # StepModel label with parameters
-step_label = f"StepModel\nm={m}, r={r}"
+def get_step_label(m, r):
+    return f"StepModel\nm={m}, r={r}"
+
 
 # RampModel label with parameters
-ramp_label = f"RampModel\nβ={beta}, σ={sigma}"
+def get_ramp_label(beta, sigma):
+    return f"RampModel\nβ={beta}, σ={sigma}"
 
-
-# Instantiate both models with fixed parameters
-step = StepModel(m=m, r=r, x0=x0, Rh=Rh)
-ramp = RampModel(beta=beta, sigma=sigma, x0=x0, Rh=Rh)
-
-# We change the number of bins
-ratio = 10  # dt_new = 100 ms bins and dt = 10ms
-T_new = T // ratio
-dt_new = 1 / T_new  # 100 ms bins for T_new=10
-
-# Simulate both models
-step_spikes, step_jumps, step_rates = step.simulate(
-    Ntrials=Ntrials, T=T_new, get_rate=True
-)
-ramp_spikes, ramp_xs, ramp_rates = ramp.simulate(
-    Ntrials=Ntrials, T=T_new, get_rate=True
-)
-
-mean_step_rate = np.mean(step_spikes, axis=0)
-mean_ramp_rate = np.mean(ramp_spikes, axis=0)
-
-var_step_rate = np.var(step_spikes, axis=0)
-var_ramp_rate = np.var(ramp_spikes, axis=0)
 
 # Fano factor = variance / mean
-fano_step = var_step_rate / (mean_step_rate + 1e-10)
-fano_ramp = var_ramp_rate / (mean_ramp_rate + 1e-10)
+def get_fano(spikes):
+    fano = np.where(
+        spikes.mean(axis=0) > 0, spikes.var(axis=0) / spikes.mean(axis=0), np.nan
+    )
+    return fano
 
-# Plot Fano factor for both models
-plt.figure(figsize=(10, 6))
-plt.plot(
-    np.arange(T_new) / (T_new / 1000),
-    fano_step,
-    color="blue",
-    label=f"StepModel\nm={m}, r={r}",
-)
-plt.plot(
-    np.arange(T_new) / (T_new / 1000),
-    fano_ramp,
-    color="green",
-    label=f"RampModel\nβ={beta}, σ={sigma}",
-)
-plt.axhline(1, color="red", linestyle=":", label="Poisson (Fano=1)")
-plt.xlabel("Time (ms)")
-plt.ylabel("Fano Factor")
-# plt.title("Fano Factor for StepModel and RampModel")
-plt.legend()
-plt.show()
+
+def plot_fano(m_r_beta_sigma_values, x0, Rh, Ntrials, T, dt, ratio):
+    # Larger Bins
+    T_new = T // ratio
+    dt_new = dt * ratio
+    # Time axis: bin centres in ms
+    time_ms_new = (np.arange(T_new) + 0.5) * dt_new * 1000
+    # Plot
+    plt.figure(figsize=(10, 6))
+    for m_loop, r_loop, beta_loop, sigma_loop in m_r_beta_sigma_values:
+        step_loop = StepModel(m=m_loop, r=r_loop, x0=x0, Rh=Rh)
+        ramp_loop = RampModel(beta=beta_loop, sigma=sigma_loop, x0=x0, Rh=Rh)
+        step_spikes_loop, step_jumps_loop, step_rates_loop = step_loop.simulate(
+            Ntrials=Ntrials, T=T, get_rate=True
+        )
+        ramp_spikes_loop, ramp_xs_loop, ramp_rates_loop = ramp_loop.simulate(
+            Ntrials=Ntrials, T=T, get_rate=True
+        )
+        fano_step_loop = get_fano(bin_spikes(step_spikes_loop, ratio))
+        fano_ramp_loop = get_fano(bin_spikes(ramp_spikes_loop, ratio))
+        # StepModel
+        plt.plot(
+            time_ms_new,
+            fano_step_loop,
+            label=get_step_label(m_loop, r_loop),
+        )
+        # RampModel
+        plt.plot(
+            time_ms_new,
+            fano_ramp_loop,
+            label=get_ramp_label(beta_loop, sigma_loop),
+        )
+    plt.axhline(1, color="red", linestyle=":", label="Poisson (Fano=1)")
+    plt.xlabel("Time (ms)")
+    plt.ylabel("Fano Factor")
+    plt.legend()
+    plt.show()
+
+
+# Parameter Space
+m_r_beta_sigma_values = [[50, 10, 0.5, 0.2], [80, 10, 0.1, 0.2], [50, 1000, 0.5, 100]]
+
+# Plot Fano
+plot_fano(m_r_beta_sigma_values, x0, Rh, Ntrials, T, dt, ratio)
 
 
 # Plot over multiple parameters for StepModel
@@ -114,13 +149,12 @@ for i in range(len(m_values_plot)):
     for j in range(len(r_values_plot)):
         step_i = StepModel(m=m_values_plot[i], r=r_values_plot[j], x0=x0, Rh=Rh)
         step_spikes_i, step_jumps_i, step_rates_i = step_i.simulate(
-            Ntrials=Ntrials, T=T_new, get_rate=True
+            Ntrials=Ntrials, T=T, get_rate=True
         )
-        mean_step_i = np.mean(step_spikes_i, axis=0)
-        var_step_i = np.var(step_spikes_i, axis=0)
-        fano_step_i = var_step_i / (mean_step_i + 1e-10)
+        step_spikes_i_binned = bin_spikes(step_spikes_i, ratio)
+        fano_step_i = get_fano(step_spikes_i_binned)
         plt.plot(
-            np.arange(T_new) / (T_new / 1000),
+            time_ms_new,
             fano_step_i,
             color=colors[color_idx],
             label=f"m={m_values_plot[i]}, r={r_values_plot[j]}",
@@ -146,13 +180,12 @@ for i in range(len(beta_values_plot)):
             beta=beta_values_plot[i], sigma=sigma_values_plot[j], x0=x0, Rh=Rh
         )
         ramp_spikes_i, ramp_xs_i, ramp_rates_i = ramp_i.simulate(
-            Ntrials=Ntrials, T=T_new, get_rate=True
+            Ntrials=Ntrials, T=T, get_rate=True
         )
-        mean_ramp_i = np.mean(ramp_spikes_i, axis=0)
-        var_ramp_i = np.var(ramp_spikes_i, axis=0)
-        fano_ramp_i = var_ramp_i / (mean_ramp_i + 1e-10)
+        ramp_spikes_i_binned = bin_spikes(ramp_spikes_i, ratio)
+        fano_ramp_i = get_fano(ramp_spikes_i_binned)
         plt.plot(
-            np.arange(T_new) / (T_new / 1000),
+            time_ms_new,
             fano_ramp_i,
             color=colors[color_idx],
             label=f"β={beta_values_plot[i]}, σ={sigma_values_plot[j]}",
@@ -168,78 +201,76 @@ plt.show()
 # We fix the values for the RampModel and vary the parameters of the StepModel
 m_values = [1, 5, 10, 30, 50, 70, 100, 150]
 r_values = [0.01, 0.1, 0.5, 1, 1.5, 2, 5]
-mse = np.zeros((len(m_values), (len(r_values))))
+beta_sigma_values = [[0.5, 0.2], [0.1, 0.2], [0.5, 100]]
 
 
-# For in For over the parameters
-for i in range(len(m_values)):
-    for j in range(len(r_values)):
-        step_i = StepModel(m=m_values[i], r=r_values[j], x0=x0, Rh=Rh)
-        step_spikes_i, step_jumps_i, step_rates_i = step_i.simulate(
-            Ntrials=Ntrials, T=T_new, get_rate=True
-        )
-        mean_step_i = np.mean(step_spikes_i, axis=0)
-        var_step_i = np.var(step_spikes_i, axis=0)
-        fano_step_i = var_step_i / (mean_step_i + 1e-10)
-        mse[i, j] = np.mean((fano_step_i - fano_ramp) ** 2)
+best_params_fano = []
+for beta_loop, sigma_loop in beta_sigma_values:
+    mse = np.zeros((len(m_values), (len(r_values))))
+    ramp_loop = RampModel(beta=beta_loop, sigma=sigma_loop, x0=x0, Rh=Rh)
+    ramp_spikes_loop, ramp_xs_loop, ramp_rates_loop = ramp_loop.simulate(
+        Ntrials=Ntrials, T=T, get_rate=True
+    )
+    fano_ramp_loop = get_fano(bin_spikes(ramp_spikes_loop, ratio))
 
-# Heatmap of MSE values for different parameter combinations
-mse = np.array(mse)
+    # For in For over the parameters
+    for i in range(len(m_values)):
+        for j in range(len(r_values)):
+            step_i = StepModel(m=m_values[i], r=r_values[j], x0=x0, Rh=Rh)
+            step_spikes_i, step_jumps_i, step_rates_i = step_i.simulate(
+                Ntrials=Ntrials, T=T, get_rate=True
+            )
+            step_spikes_i_binned = bin_spikes(step_spikes_i, ratio)
+            fano_step_i = get_fano(step_spikes_i_binned)
+            mse[i, j] = np.nanmean((fano_step_i - fano_ramp_loop) ** 2)
+
+    # Heatmap of MSE values for different parameter combinations
+    mse = np.array(mse)
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(
+        mse,
+        annot=True,
+        fmt=".5f",
+        cmap="viridis",
+        xticklabels=[f"{r}" for r in r_values],
+        yticklabels=[f"{m}" for m in m_values],
+    )
+    plt.title(f"beta={beta_loop}, sigma={sigma_loop}")
+    plt.xlabel("r")
+    plt.ylabel("m")
+    plt.show()
+
+    # Best Parameter
+    min_idx = np.unravel_index(mse.argmin(), mse.shape)
+    print(
+        f"Best parameters(beta={beta_loop}, sigma={sigma_loop}): m={m_values[min_idx[0]]}, r={r_values[min_idx[1]]}, MSE={mse[min_idx]:.4f}"
+    )
+    best_params_fano.append((beta_loop, sigma_loop, min_idx, fano_ramp_loop))
+
+# Single Fano figure with all beta/sigma pairs
 plt.figure(figsize=(10, 6))
-sns.heatmap(
-    mse,
-    annot=True,
-    fmt=".5f",
-    cmap="viridis",
-    xticklabels=[f"{r}" for r in r_values],
-    yticklabels=[f"{m}" for m in m_values],
-)
-plt.xlabel("r")
-plt.ylabel("m")
-# plt.title("MSE over parameter grid")
-plt.show()
+for beta_loop, sigma_loop, min_idx, fano_ramp_loop in best_params_fano:
+    # Plot for the most similar parameters
+    # create models
+    step_new = StepModel(m=m_values[min_idx[0]], r=r_values[min_idx[1]], x0=x0, Rh=Rh)
 
+    # simulate spikes
+    step_spikes_new, step_jumps_new, step_rates_new = step_new.simulate(
+        Ntrials, T, get_rate=True
+    )
 
-# Best Parameter
-min_idx = np.unravel_index(mse.argmin(), mse.shape)
-print(
-    f"Best parameters: m={m_values[min_idx[0]]}, r={r_values[min_idx[1]]}, MSE={mse[min_idx]:.4f}"
-)
+    # Fano factor for new parameters
+    step_spikes_new_binned = bin_spikes(step_spikes_new, ratio)
+    fano_step_new = get_fano(step_spikes_new_binned)
 
-# Plot for the most similar parameters
-# create models
-step_new = StepModel(m=m_values[min_idx[0]], r=r_values[min_idx[1]], x0=x0, Rh=Rh)
-ramp_new = RampModel(beta=beta, sigma=sigma, x0=x0, Rh=Rh)
+    # plot
+    plt.plot(
+        time_ms_new,
+        fano_step_new,
+        label=get_step_label(m_values[min_idx[0]], r_values[min_idx[1]]),
+    )
+    plt.plot(time_ms_new, fano_ramp_loop, label=get_ramp_label(beta_loop, sigma_loop))
 
-# simulate spikes
-step_spikes_new, step_jumps_new, step_rates_new = step_new.simulate(Ntrials, T_new)
-ramp_spikes_new, ramp_xs_new, ramp_rates_new = ramp_new.simulate(Ntrials, T_new)
-
-# Fano factor for new parameters
-mean_step_new = np.mean(step_spikes_new, axis=0)
-var_step_new = np.var(step_spikes_new, axis=0)
-fano_step_new = var_step_new / (mean_step_new + 1e-10)
-
-
-# StepModel label with parameters
-step_label_new = f"StepModel\nm={m_values[min_idx[0]]}, r={r_values[min_idx[1]]}"
-
-# plot
-plt.figure(figsize=(10, 6))
-# StepModel
-plt.plot(
-    np.arange(T_new) / (T_new / 1000),
-    fano_step_new,
-    color="blue",
-    label=step_label_new,
-)
-# RampModel
-plt.plot(
-    np.arange(T_new) / (T_new / 1000),
-    fano_ramp,
-    color="green",
-    label=ramp_label,
-)
 plt.xlabel("Time (ms)")
 plt.ylabel("Fano Factor")
 plt.legend()

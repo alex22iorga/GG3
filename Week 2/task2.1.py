@@ -1,8 +1,24 @@
+import os
+
+os.environ["OMP_NUM_THREADS"] = str(os.cpu_count())
+
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from pathlib import Path
 from scipy.stats import norm
+import matplotlib.pyplot as plt
+
+# Labels
+plt.rcParams.update(
+    {
+        "axes.labelsize": 20,  # x and y labels
+        "axes.titlesize": 20,  # title size
+        "xtick.labelsize": 14,  # x tick labels
+        "ytick.labelsize": 14,  # y tick labels
+        "legend.fontsize": 14,  # legend text
+    }
+)
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from models import RampModel
@@ -173,8 +189,10 @@ def compare_models(beta, sigma, x0, Rh):
     var_ramp_xs = np.var(ramp_xs, axis=0)
 
     # Calculate variance/mean ratio for both models
-    var_mean_ratio_x_t = var_x_t / (mean_x_t + 1e-8)
-    var_mean_ratio_ramp_xs = var_ramp_xs / (mean_ramp_xs + 1e-8)
+    var_mean_ratio_x_t = np.where(mean_x_t > 0, var_x_t / mean_x_t, np.nan)
+    var_mean_ratio_ramp_xs = np.where(
+        mean_ramp_xs > 0, var_ramp_xs / mean_ramp_xs, np.nan
+    )
 
     # 2) Calculate a Correlation Coefficient between mean x_t trajectories of both models
     correlation_coefficient = np.corrcoef(mean_x_t, mean_ramp_xs)[0, 1]
